@@ -185,6 +185,7 @@
       background: #fbf8f1; border-top: 1px solid #e0d7c4;
       display: flex; padding-bottom: env(safe-area-inset-bottom);
       z-index: 100;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.03);
     }
     .wt-bottom-nav-item {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -228,6 +229,7 @@
     const HomeIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>} />;
     const StatsIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>} />;
     const LockIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>} />;
+    const PlusIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />;
 
     // ===== ヘルパー =====
     function getMondayOf(date) {
@@ -255,26 +257,30 @@
     const DAYS_FULL = ['日', '月', '火', '水', '木', '金', '土'];
     const DAYS_ORDER = [1, 2, 3, 4, 5, 6, 0];
     const COURSE_COLORS = ['#b8442d', '#c8893a', '#5d7c46', '#3d5566', '#8e5e7b', '#6b5f52'];
-    const STORAGE_KEY = 'weekly-tracker-v3';
+    const STORAGE_KEY = 'weekly-tracker-v4';
 
     function WeeklyTracker() {
       const [courses, setCourses] = useState([]);
       const [submissions, setSubmissions] = useState({});
+      const [holidays, setHolidays] = useState([]); // 休講・休暇データ
+      
       const [loaded, setLoaded] = useState(false);
       const [view, setView] = useState('main'); 
+      const [settingsTab, setSettingsTab] = useState('courses'); // 'courses' | 'holidays'
+      
       const [editingId, setEditingId] = useState(null);
       const [weekOffset, setWeekOffset] = useState(0);
       const [now, setNow] = useState(new Date());
 
-      // 4月1日をデフォルトの集計開始日とする
-      const defaultStartDateStr = `${new Date().getFullYear()}-04-01`;
       const todayStr = new Date().toISOString().split('T')[0];
       const nextWeekStr = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+      // デフォルトの集計開始日は4月1日
+      const defaultStartDateStr = `${new Date().getFullYear()}-04-01`;
 
       const defaultForm = {
         type: 'recurring',
         name: '',
-        startDate: defaultStartDateStr, // 追加：集計開始日（さかのぼり用）
+        startDate: defaultStartDateStr, 
         hasStart: false,
         startDayOfWeek: 1, startTime: '09:00',
         dueDayOfWeek: 3, dueTime: '23:59',
@@ -283,34 +289,34 @@
         url: '', color: COURSE_COLORS[0],
       };
       const [form, setForm] = useState(defaultForm);
+      
+      const [holidayForm, setHolidayForm] = useState({ name: '', start: todayStr, end: todayStr });
+      const [showHolidayForm, setShowHolidayForm] = useState(false);
 
       useEffect(() => {
         try {
-          const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('weekly-tracker-v2') || localStorage.getItem('weekly-tracker-v1');
+          const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('weekly-tracker-v3') || localStorage.getItem('weekly-tracker-v2');
           if (raw) {
             const data = JSON.parse(raw);
             const migratedCourses = (data.courses || []).map(c => ({
-               type: 'recurring',
-               hasStart: false,
-               startDate: defaultStartDateStr, // 過去のデータにもデフォルト適用
-               ...c
+               type: 'recurring', hasStart: false, startDate: defaultStartDateStr, ...c
             }));
             setCourses(migratedCourses);
             setSubmissions(data.submissions || {});
+            setHolidays(data.holidays || []);
           }
-        } catch (e) {
-          console.error('読み込み失敗', e);
-        }
+        } catch (e) { console.error('読み込み失敗', e); }
         setLoaded(true);
         const timer = setInterval(() => setNow(new Date()), 30000);
         return () => clearInterval(timer);
       }, []);
 
-      const saveData = (newCourses, newSubmissions) => {
+      const saveData = (newCourses, newSubmissions, newHolidays) => {
         setCourses(newCourses);
         setSubmissions(newSubmissions);
+        setHolidays(newHolidays);
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ courses: newCourses, submissions: newSubmissions }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ courses: newCourses, submissions: newSubmissions, holidays: newHolidays }));
         } catch (e) {}
       };
 
@@ -318,62 +324,91 @@
       const currentWeekKey = weekKey(viewWeek);
 
       const toggleSubmit = (subKey, status) => {
-        if (status === 'upcoming') {
-           if (!confirm('受付開始前の課題です。提出済みにしますか？')) return;
-        }
+        if (status === 'upcoming' && !confirm('受付開始前の課題です。提出済みにしますか？')) return;
         const newSubmissions = { ...submissions };
         if (newSubmissions[subKey]?.submitted) {
           delete newSubmissions[subKey];
         } else {
           newSubmissions[subKey] = { submitted: true, submittedAt: new Date().toISOString() };
         }
-        saveData(courses, newSubmissions);
+        saveData(courses, newSubmissions, holidays);
       };
 
-      const resetForm = () => {
-        setForm({ ...defaultForm, color: COURSE_COLORS[courses.length % COURSE_COLORS.length] });
-        setEditingId(null);
-      };
-      const openNewForm = () => {
-        resetForm();
-        setView('form');
-      };
-      const openEditForm = (course) => {
-        setForm({ ...defaultForm, ...course });
-        setEditingId(course.id);
-        setView('form');
-      };
+      // --- 課題のフォーム関連 ---
+      const resetForm = () => { setForm({ ...defaultForm, color: COURSE_COLORS[courses.length % COURSE_COLORS.length] }); setEditingId(null); };
+      const openNewForm = () => { resetForm(); setView('form'); };
+      const openEditForm = (course) => { setForm({ ...defaultForm, ...course }); setEditingId(course.id); setView('form'); };
       const saveCourse = () => {
         if (!form.name.trim()) return;
-        let newCourses;
-        if (editingId) {
-          newCourses = courses.map((c) => (c.id === editingId ? { ...c, ...form } : c));
-        } else {
-          newCourses = [...courses, {
-            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-            ...form,
-            createdAt: new Date().toISOString(),
-          }];
-        }
-        saveData(newCourses, submissions);
-        resetForm();
-        setView('settings');
+        const newCourses = editingId 
+           ? courses.map(c => (c.id === editingId ? { ...c, ...form } : c))
+           : [...courses, { id: Date.now().toString() + Math.random().toString(36).slice(2, 6), ...form, createdAt: new Date().toISOString() }];
+        saveData(newCourses, submissions, holidays);
+        resetForm(); setView('settings');
       };
       const deleteCourse = (id) => {
         if (!confirm('この課題と提出履歴をすべて削除しますか?')) return;
-        const newCourses = courses.filter((c) => c.id !== id);
         const newSubmissions = {};
-        Object.entries(submissions).forEach(([k, v]) => {
-          if (!k.startsWith(`${id}:`) && k !== id) newSubmissions[k] = v;
-        });
-        saveData(newCourses, newSubmissions);
+        Object.entries(submissions).forEach(([k, v]) => { if (!k.startsWith(`${id}:`) && k !== id) newSubmissions[k] = v; });
+        saveData(courses.filter(c => c.id !== id), newSubmissions, holidays);
+      };
+
+      // --- 休講・休暇のフォーム関連 ---
+      const saveHoliday = () => {
+         if (!holidayForm.name.trim() || !holidayForm.start) return;
+         const newHolidays = [...holidays, { id: Date.now().toString(), name: holidayForm.name, start: holidayForm.start, end: holidayForm.end || holidayForm.start }];
+         saveData(courses, submissions, newHolidays);
+         setHolidayForm({ name: '', start: todayStr, end: todayStr });
+         setShowHolidayForm(false);
+      };
+      const deleteHoliday = (id) => {
+         saveData(courses, submissions, holidays.filter(h => h.id !== id));
+      };
+
+      // 授業が有効な週（お休みではない週）を算出するヘルパー
+      const getValidOccurrences = (course, fromMonday, toMonday, holidayList) => {
+          let occurrences = [];
+          let w = new Date(fromMonday);
+          let iter = 1;
+
+          while (w <= toMonday) {
+              const endOffset = course.dueDayOfWeek === 0 ? 6 : course.dueDayOfWeek - 1;
+              let deadline = addDays(w, endOffset);
+              const [eh, em] = (course.dueTime || '23:59').split(':');
+              deadline.setHours(parseInt(eh), parseInt(em), 0, 0);
+
+              let start = null;
+              if (course.hasStart) {
+                   const startOffset = course.startDayOfWeek === 0 ? 6 : course.startDayOfWeek - 1;
+                   start = addDays(w, startOffset);
+                   if (startOffset > endOffset || (startOffset === endOffset && course.startTime > course.dueTime)) {
+                       start = addDays(start, -7);
+                   }
+                   const [sh, sm] = (course.startTime || '00:00').split(':');
+                   start.setHours(parseInt(sh), parseInt(sm), 0, 0);
+              }
+
+              // 休講判定：授業のベースとなる日（出題日、なければ締切日）が休講期間に含まれるか
+              const baseDateForCheck = start || deadline;
+              const isHoliday = holidayList.some(h => {
+                  const hStart = new Date(`${h.start}T00:00:00`);
+                  const hEnd = new Date(`${h.end}T23:59:59`);
+                  return baseDateForCheck >= hStart && baseDateForCheck <= hEnd;
+              });
+
+              if (!isHoliday) {
+                  occurrences.push({ weekKey: weekKey(w), start, deadline, iteration: iter });
+                  iter++;
+              }
+              w = addDays(w, 7);
+          }
+          return occurrences;
       };
 
       // 指定週の課題アイテムを生成
       const weekItems = useMemo(() => {
         return courses.map(c => {
            let start, deadline, key, iteration = null;
-           let belongsToThisWeek = false;
 
            if (c.type === 'oneoff') {
               deadline = new Date(`${c.specificEndDate}T${c.specificEndTime || '23:59'}`);
@@ -381,42 +416,22 @@
               
               const viewWeekEnd = addDays(viewWeek, 6);
               viewWeekEnd.setHours(23, 59, 59, 999);
-              
-              const checkStart = start || deadline;
-              if (checkStart <= viewWeekEnd && deadline >= viewWeek) {
-                  belongsToThisWeek = true;
-              }
+              if (!((start || deadline) <= viewWeekEnd && deadline >= viewWeek)) return null;
               key = c.id;
            } else {
-              // 毎週の課題
-              const baseDate = new Date(c.startDate || c.createdAt);
-              const baseMonday = getMondayOf(baseDate);
+              const baseMonday = getMondayOf(new Date(c.startDate || c.createdAt));
+              if (viewWeek < baseMonday) return null; // 集計開始前
               
-              // 集計開始週より前の週なら表示しない
-              if (viewWeek < baseMonday) return null;
+              const occurrences = getValidOccurrences(c, baseMonday, viewWeek, holidays);
+              const thisWeekOccurrence = occurrences.find(o => o.weekKey === currentWeekKey);
               
-              belongsToThisWeek = true;
-              iteration = Math.round((viewWeek - baseMonday) / 604800000) + 1;
+              if (!thisWeekOccurrence) return null; // この週は休講でスキップされた
 
-              const endOffset = c.dueDayOfWeek === 0 ? 6 : c.dueDayOfWeek - 1;
-              deadline = addDays(viewWeek, endOffset);
-              const [eh, em] = (c.dueTime || '23:59').split(':');
-              deadline.setHours(parseInt(eh), parseInt(em), 0, 0);
-
-              if (c.hasStart) {
-                 const startOffset = c.startDayOfWeek === 0 ? 6 : c.startDayOfWeek - 1;
-                 start = addDays(viewWeek, startOffset);
-                 // もし出題曜日が締切曜日より後なら、先週に出題されたとみなす（火曜出題→来週火曜締切など）
-                 if (startOffset > endOffset || (startOffset === endOffset && c.startTime > c.dueTime)) {
-                     start = addDays(start, -7);
-                 }
-                 const [sh, sm] = (c.startTime || '00:00').split(':');
-                 start.setHours(parseInt(sh), parseInt(sm), 0, 0);
-              }
+              iteration = thisWeekOccurrence.iteration;
+              start = thisWeekOccurrence.start;
+              deadline = thisWeekOccurrence.deadline;
               key = `${c.id}:${currentWeekKey}`;
            }
-
-           if (!belongsToThisWeek) return null;
 
            const sub = submissions[key];
            const submitted = !!sub?.submitted;
@@ -430,7 +445,7 @@
 
            return { course: c, submitted, start, deadline, status, submittedAt: sub?.submittedAt, subKey: key, iteration };
         }).filter(Boolean).sort((a, b) => a.deadline - b.deadline);
-      }, [courses, submissions, currentWeekKey, viewWeek, now]);
+      }, [courses, submissions, currentWeekKey, viewWeek, now, holidays]);
 
       // 履歴・統計用のデータ生成
       const courseStats = useMemo(() => {
@@ -442,25 +457,20 @@
                if (submissions[c.id]?.submitted) sub++;
                else if (now > deadline) missed++;
             } else {
-               const startW = getMondayOf(new Date(c.startDate || c.createdAt || new Date().toISOString()));
+               const baseMonday = getMondayOf(new Date(c.startDate || c.createdAt));
                const currentW = getMondayOf(now);
-               let w = new Date(startW);
-               while (w <= currentW) {
-                  const endOffset = c.dueDayOfWeek === 0 ? 6 : c.dueDayOfWeek - 1;
-                  const deadline = addDays(w, endOffset);
-                  const [eh, em] = (c.dueTime || '23:59').split(':');
-                  deadline.setHours(parseInt(eh), parseInt(em), 0, 0);
-
-                  const key = `${c.id}:${weekKey(w)}`;
+               const occurrences = getValidOccurrences(c, baseMonday, currentW, holidays);
+               
+               occurrences.forEach(o => {
+                  const key = `${c.id}:${o.weekKey}`;
                   if (submissions[key]?.submitted) sub++;
-                  else if (now > deadline) missed++;
+                  else if (now > o.deadline) missed++;
                   total++;
-                  w = addDays(w, 7);
-               }
+               });
             }
             return { ...c, total, sub, missed };
          }).sort((a, b) => (b.sub / (b.total || 1)) - (a.sub / (a.total || 1)));
-      }, [courses, submissions, now]);
+      }, [courses, submissions, now, holidays]);
 
       const submittedCount = weekItems.filter((i) => i.submitted).length;
       const missedCount = weekItems.filter((i) => i.status === 'missed').length;
@@ -481,7 +491,6 @@
            if (days > 0) return `開始まで ${days}日`;
            return `開始まで 約${Math.max(1, hours)}時間`;
         }
-
         const diff = deadline - now;
         if (diff < 0) {
           const elapsed = Math.abs(diff);
@@ -650,36 +659,96 @@
           {view === 'settings' && (
             <div className="wt-container wt-fade-in">
               <header style={{ marginBottom: '20px' }}>
-                <h1 className="wt-mincho" style={{ fontSize: '26px', fontWeight: 600, margin: 0 }}>課題の管理</h1>
+                <h1 className="wt-mincho" style={{ fontSize: '26px', fontWeight: 600, margin: 0 }}>設定と管理</h1>
               </header>
 
-              <button className="wt-btn-primary" onClick={openNewForm} style={{ marginBottom: '24px' }}>+ 新しい課題を登録</button>
+              <div className="wt-tab-bar" style={{ marginBottom: '24px' }}>
+                <div className={`wt-tab-btn ${settingsTab === 'courses' ? 'active' : ''}`} onClick={() => setSettingsTab('courses')}>科目・課題</div>
+                <div className={`wt-tab-btn ${settingsTab === 'holidays' ? 'active' : ''}`} onClick={() => setSettingsTab('holidays')}>休講・長期休み</div>
+              </div>
 
-              {courses.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8b7e6b' }}>
-                  <p style={{ fontSize: '14px', marginBottom: '20px' }}>登録されている課題がありません</p>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                  {courses.map((c) => (
-                    <div key={c.id} style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', borderRadius: '14px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: c.color || '#6b5f52', flexShrink: 0 }}></div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="wt-mincho" style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                           {c.name}
-                           {c.type === 'oneoff' && <span className="wt-badge wt-badge-oneoff">単発</span>}
-                        </div>
-                        <div className="wt-mono" style={{ fontSize: '12px', color: '#8b7e6b', marginTop: '2px' }}>
-                           {c.type === 'oneoff' ? `締切: ${c.specificEndDate}` : `開始: ${c.startDate}〜`}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                        <button className="wt-btn-ghost" onClick={() => openEditForm(c)} style={{ padding: '8px 12px', fontSize: '13px', minHeight: '38px' }}>編集</button>
-                        <button className="wt-btn-danger" onClick={() => deleteCourse(c.id)} style={{ padding: '8px 10px', minHeight: '38px' }} aria-label="削除"><TrashIcon size={15} /></button>
-                      </div>
+              {settingsTab === 'courses' && (
+                <>
+                  <button className="wt-btn-primary" onClick={openNewForm} style={{ marginBottom: '24px' }}>+ 新しい課題を登録</button>
+
+                  {courses.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8b7e6b' }}>
+                      <p style={{ fontSize: '14px', marginBottom: '20px' }}>登録されている課題がありません</p>
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                      {courses.map((c) => (
+                        <div key={c.id} style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', borderRadius: '14px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: c.color || '#6b5f52', flexShrink: 0 }}></div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="wt-mincho" style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                               {c.name}
+                               {c.type === 'oneoff' && <span className="wt-badge wt-badge-oneoff">単発</span>}
+                            </div>
+                            <div className="wt-mono" style={{ fontSize: '12px', color: '#8b7e6b', marginTop: '2px' }}>
+                               {c.type === 'oneoff' ? `締切: ${c.specificEndDate}` : `開始: ${c.startDate}〜`}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                            <button className="wt-btn-ghost" onClick={() => openEditForm(c)} style={{ padding: '8px 12px', fontSize: '13px', minHeight: '38px' }}>編集</button>
+                            <button className="wt-btn-danger" onClick={() => deleteCourse(c.id)} style={{ padding: '8px 10px', minHeight: '38px' }} aria-label="削除"><TrashIcon size={15} /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {settingsTab === 'holidays' && (
+                <>
+                  {!showHolidayForm ? (
+                    <button className="wt-btn-ghost" onClick={() => setShowHolidayForm(true)} style={{ width: '100%', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#fbf8f1' }}>
+                      <PlusIcon size={18} stroke={2} /> 休みを追加する
+                    </button>
+                  ) : (
+                    <div style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', padding: '16px', borderRadius: '14px', marginBottom: '24px' }}>
+                       <div style={{ marginBottom: '16px' }}>
+                         <label style={{ fontSize: '12px', color: '#8b7e6b', fontWeight: 600, display: 'block', marginBottom: '8px' }}>休みの名前（例: 夏休み、創立記念日）</label>
+                         <input className="wt-input" type="text" value={holidayForm.name} onChange={e => setHolidayForm({...holidayForm, name: e.target.value})} placeholder="休みの名前" />
+                       </div>
+                       <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                         <div style={{ flex: 1 }}>
+                           <label style={{ fontSize: '12px', color: '#8b7e6b', fontWeight: 600, display: 'block', marginBottom: '8px' }}>開始日</label>
+                           <input className="wt-input" type="date" value={holidayForm.start} onChange={e => setHolidayForm({...holidayForm, start: e.target.value})} style={{ padding: '0 10px' }} />
+                         </div>
+                         <div style={{ flex: 1 }}>
+                           <label style={{ fontSize: '12px', color: '#8b7e6b', fontWeight: 600, display: 'block', marginBottom: '8px' }}>終了日 (単日の場合は同じ日)</label>
+                           <input className="wt-input" type="date" value={holidayForm.end} onChange={e => setHolidayForm({...holidayForm, end: e.target.value})} style={{ padding: '0 10px' }} />
+                         </div>
+                       </div>
+                       <div style={{ display: 'flex', gap: '10px' }}>
+                         <button className="wt-btn-primary" style={{ flex: 2 }} onClick={saveHoliday} disabled={!holidayForm.name.trim() || !holidayForm.start}>保存する</button>
+                         <button className="wt-btn-ghost" style={{ flex: 1, minHeight: '48px' }} onClick={() => setShowHolidayForm(false)}>キャンセル</button>
+                       </div>
+                    </div>
+                  )}
+
+                  {holidays.length === 0 ? (
+                     <div style={{ textAlign: 'center', padding: '20px', color: '#8b7e6b' }}>
+                        <p style={{ fontSize: '13px', margin: 0 }}>休講や長期休みの設定はありません。<br/>設定した期間は課題が自動スキップされ、<br/>第◯回のカウントも自動調整されます。</p>
+                     </div>
+                  ) : (
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {[...holidays].sort((a,b) => a.start.localeCompare(b.start)).map(h => (
+                           <div key={h.id} style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', borderRadius: '12px', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div>
+                                 <div className="wt-mincho" style={{ fontSize: '15px', fontWeight: 600, color: '#2a2622' }}>{h.name}</div>
+                                 <div className="wt-mono" style={{ fontSize: '12px', color: '#6b5f52', marginTop: '4px' }}>
+                                    {h.start === h.end ? h.start : `${h.start} 〜 ${h.end}`}
+                                 </div>
+                              </div>
+                              <button className="wt-btn-danger" onClick={() => deleteHoliday(h.id)} style={{ padding: '6px 10px', minHeight: 'auto' }} aria-label="削除"><TrashIcon size={14} /></button>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -713,7 +782,7 @@
                         初回授業日 / 集計開始日 <span style={{ color: '#b8442d' }}>*</span>
                       </label>
                       <p style={{ fontSize: '11px', color: '#8b7e6b', marginBottom: '12px', marginTop: 0 }}>※この日付以降の週から課題が作成され、「第〇回」としてカウントされます。</p>
-                      <input className="wt-input" type="date" value={form.startDate} onChange={(e) => setForm({...form, startDate: e.target.value})} />
+                      <input className="wt-input" type="date" value={form.startDate} onChange={(e) => setForm({...form, startDate: e.target.value})} style={{ padding: '0 14px' }}/>
                     </div>
 
                     <div style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', padding: '16px', borderRadius: '12px' }}>
@@ -797,9 +866,9 @@
                   <StatsIcon size={22} stroke={view === 'stats' ? 2.5 : 2} />
                   <span>履歴・統計</span>
                </div>
-               <div className={`wt-bottom-nav-item ${view === 'settings' ? 'active' : ''}`} onClick={() => setView('settings')}>
+               <div className={`wt-bottom-nav-item ${view === 'settings' ? 'active' : ''}`} onClick={() => {setView('settings'); setSettingsTab('courses');}}>
                   <SettingsIcon size={22} stroke={view === 'settings' ? 2.5 : 2} />
-                  <span>課題管理</span>
+                  <span>設定と管理</span>
                </div>
             </div>
           )}
