@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="課題チェック" />
+  <meta name="theme-color" content="#f4efe4" />
+  <title>課題チェック</title>
+
+  <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23f4efe4'/%3E%3Ccircle cx='90' cy='90' r='50' fill='none' stroke='%235d7c46' stroke-width='8'/%3E%3Cpath d='M65 90 L82 107 L117 72' fill='none' stroke='%235d7c46' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23f4efe4'/%3E%3Ccircle cx='90' cy='90' r='50' fill='none' stroke='%235d7c46' stroke-width='8'/%3E%3Cpath d='M65 90 L82 107 L117 72' fill='none' stroke='%235d7c46' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #f4efe4;
+      font-family: 'Zen Kaku Gothic New', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      color: #2a2622;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior-y: none;
+    }
+    .wt { font-family: 'Zen Kaku Gothic New', -apple-system, sans-serif; font-size: 15px; line-height: 1.5; }
+    .wt-mincho { font-family: 'Shippori Mincho', serif; }
+    .wt-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .wt-container {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: calc(20px + env(safe-area-inset-top)) 16px calc(100px + env(safe-area-inset-bottom));
+    }
+
+    .wt-course-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: #fbf8f1;
+      border: 1px solid #e0d7c4;
+      border-radius: 14px;
+      padding: 16px 16px 16px 14px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 76px;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .wt-course-card:active { transform: scale(0.98); }
+    .wt-course-card.submitted { background: #eef2e7; border-color: #c5d0b4; }
+    .wt-course-card.missed { background: #faeee9; border-color: #e5b7a8; }
+    .wt-course-card.upcoming { background: #f0ebe1; border-color: #d4c8b0; opacity: 0.8; }
+
+    .wt-check {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      border: 2px solid #c4b8a0;
+      background: #fbf8f1;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+      margin-top: 2px;
+    }
+    .wt-check.submitted { background: #5d7c46; border-color: #5d7c46; color: #fbf8f1; }
+    .wt-check.missed { border-color: #b8442d; color: #b8442d; }
+    .wt-check.upcoming { background: #e4dccc; border-color: #c4b8a0; color: #a89f8f; }
+
+    .wt-btn-primary {
+      background: #2a2622; color: #f4efe4;
+      border: none; padding: 14px 20px; border-radius: 12px;
+      font-family: inherit; font-weight: 500; font-size: 15px;
+      letter-spacing: 0.05em; cursor: pointer;
+      min-height: 48px; width: 100%;
+      transition: background 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .wt-btn-primary:active { background: #1a1614; }
+    .wt-btn-primary:disabled { background: #a89f8f; cursor: not-allowed; }
+
+    .wt-btn-ghost {
+      background: transparent; color: #6b5f52;
+      border: 1px solid #d4c8b0; padding: 12px 18px; border-radius: 12px;
+      font-family: inherit; font-size: 14px; cursor: pointer;
+      min-height: 44px;
+    }
+    .wt-btn-ghost:active { background: #ebe4d1; }
+
+    .wt-btn-danger {
+      background: transparent; color: #b8442d;
+      border: 1px solid #e5b7a8; padding: 10px 14px; border-radius: 10px;
+      font-family: inherit; font-size: 13px; cursor: pointer;
+    }
+    .wt-btn-danger:active { background: #faeee9; }
+
+    .wt-input {
+      width: 100%;
+      background: #fbf8f1;
+      border: 1px solid #d4c8b0;
+      border-radius: 10px;
+      padding: 14px 14px;
+      font-family: inherit;
+      font-size: 16px;
+      color: #2a2622;
+      outline: none;
+      min-height: 48px;
+      transition: border-color 0.15s;
+    }
+    .wt-input:focus { border-color: #6b5f52; }
+    .wt-input:disabled { background: #f0ebe1; color: #a89f8f; }
+
+    .wt-day-btn {
+      flex: 1; min-width: 40px; min-height: 44px;
+      background: #fbf8f1;
+      border: 1px solid #d4c8b0;
+      border-radius: 10px;
+      font-family: inherit; font-size: 15px;
+      color: #6b5f52; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .wt-day-btn.active { background: #2a2622; color: #f4efe4; border-color: #2a2622; }
+    .wt-day-btn:active { transform: scale(0.95); }
+
+    .wt-color-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid transparent; cursor: pointer; padding: 0;
+      transition: transform 0.15s;
+    }
+    .wt-color-btn.active { border-color: #2a2622; transform: scale(1.1); }
+
+    .wt-week-nav {
+      display: flex; align-items: center; gap: 8px;
+      background: #fbf8f1;
+      border: 1px solid #e0d7c4;
+      border-radius: 14px;
+      padding: 6px;
+      margin-bottom: 16px;
+    }
+    .wt-week-nav-btn {
+      flex-shrink: 0; width: 44px; height: 44px;
+      border-radius: 10px;
+      background: transparent; border: none;
+      color: #6b5f52; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .wt-week-nav-btn:active { background: #ebe4d1; }
+
+    .wt-progress-track { height: 6px; background: #e0d7c4; border-radius: 3px; overflow: hidden; }
+    .wt-progress-fill { height: 100%; background: #5d7c46; transition: width 0.4s ease; }
+
+    .wt-tab-bar {
+      display: flex; background: #eadecd; border-radius: 10px; padding: 4px; margin-bottom: 20px;
+    }
+    .wt-tab-btn {
+      flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 500;
+      color: #6b5f52; border-radius: 8px; cursor: pointer; transition: 0.2s;
+    }
+    .wt-tab-btn.active { background: #fbf8f1; color: #2a2622; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+    .wt-bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #fbf8f1; border-top: 1px solid #e0d7c4;
+      display: flex; padding-bottom: env(safe-area-inset-bottom);
+      z-index: 100;
+    }
+    .wt-bottom-nav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 12px 0; color: #a89f8f; cursor: pointer; font-size: 11px; font-weight: 500; gap: 4px;
+      transition: color 0.15s;
+    }
+    .wt-bottom-nav-item.active { color: #2a2622; }
+
+    .wt-fade-in { animation: wtFadeIn 0.25s ease; }
+    @keyframes wtFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    body {
+      background-image:
+        radial-gradient(circle at 20% 10%, rgba(139, 120, 80, 0.04) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(90, 70, 50, 0.03) 0%, transparent 40%);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module">
+    const { useState, useEffect, useMemo } = React;
+
+    // ===== SVG アイコン =====
+    const Icon = ({ d, size = 20, stroke = 1.8, fill = 'none' }) => (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round">
+        {d}
+      </svg>
+    );
+    const CheckIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke || 3} d={<polyline points="20 6 9 17 4 12" />} />;
+    const ChevronLeft = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<polyline points="15 18 9 12 15 6" />} />;
+    const ChevronRight = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<polyline points="9 18 15 12 9 6" />} />;
+    const XIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>} />;
+    const TrashIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>} />;
+    const SettingsIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>} />;
+    const AlertCircle = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>} />;
+    const BookOpen = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>} />;
+    const ExternalLink = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></>} />;
+    const HomeIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></>} />;
+    const StatsIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></>} />;
+    const LockIcon = ({ size, stroke }) => <Icon size={size} stroke={stroke} d={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>} />;
+
+    // ===== ヘルパー =====
+    function getMondayOf(date) {
+      const d = new Date(date);
+      d.setHours(0, 0, 0, 0);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      d.setDate(diff);
+      return d;
+    }
+    function addDays(date, days) {
+      const d = new Date(date);
+      d.setDate(d.getDate() + days);
+      return d;
+    }
+    function weekKey(date) {
+      const m = getMondayOf(date);
+      return `${m.getFullYear()}-${(m.getMonth() + 1).toString().padStart(2, '0')}-${m.getDate().toString().padStart(2, '0')}`;
+    }
+
+    const DAYS_FULL = ['日', '月', '火', '水', '木', '金', '土'];
+    const DAYS_ORDER = [1, 2, 3, 4, 5, 6, 0];
+    const COURSE_COLORS = ['#b8442d', '#c8893a', '#5d7c46', '#3d5566', '#8e5e7b', '#6b5f52'];
+    const STORAGE_KEY = 'weekly-tracker-v2'; // Data migration handled
+
+    function WeeklyTracker() {
+      const [courses, setCourses] = useState([]);
+      const [submissions, setSubmissions] = useState({});
+      const [loaded, setLoaded] = useState(false);
+      const [view, setView] = useState('main'); // main, stats, settings, form
+      const [editingId, setEditingId] = useState(null);
+      const [weekOffset, setWeekOffset] = useState(0);
+      const [now, setNow] = useState(new Date());
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const nextWeekStr = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+
+      const defaultForm = {
+        type: 'recurring', // 'recurring' | 'oneoff'
+        name: '',
+        hasStart: false,
+        startDayOfWeek: 1, startTime: '09:00',
+        dueDayOfWeek: 3, dueTime: '23:59',
+        specificStartDate: todayStr, specificStartTime: '09:00',
+        specificEndDate: nextWeekStr, specificEndTime: '23:59',
+        url: '', color: COURSE_COLORS[0],
+      };
+      const [form, setForm] = useState(defaultForm);
+
+      useEffect(() => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('weekly-tracker-v1');
+          if (raw) {
+            const data = JSON.parse(raw);
+            const migratedCourses = (data.courses || []).map(c => ({
+               type: 'recurring', hasStart: false, ...c
+            }));
+            setCourses(migratedCourses);
+            setSubmissions(data.submissions || {});
+          }
+        } catch (e) {
+          console.error('読み込み失敗', e);
+        }
+        setLoaded(true);
+        const timer = setInterval(() => setNow(new Date()), 30000);
+        return () => clearInterval(timer);
+      }, []);
+
+      const saveData = (newCourses, newSubmissions) => {
+        setCourses(newCourses);
+        setSubmissions(newSubmissions);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ courses: newCourses, submissions: newSubmissions }));
+        } catch (e) {}
+      };
+
+      const viewWeek = useMemo(() => addDays(getMondayOf(new Date()), weekOffset * 7), [weekOffset, now]);
+      const currentWeekKey = weekKey(viewWeek);
+
+      const toggleSubmit = (subKey, status) => {
+        if (status === 'upcoming') {
+           if (!confirm('受付開始前の課題です。提出済みにしますか？')) return;
+        }
+        const newSubmissions = { ...submissions };
+        if (newSubmissions[subKey]?.submitted) {
+          delete newSubmissions[subKey];
+        } else {
+          newSubmissions[subKey] = { submitted: true, submittedAt: new Date().toISOString() };
+        }
+        saveData(courses, newSubmissions);
+      };
+
+      const resetForm = () => {
+        setForm({ ...defaultForm, color: COURSE_COLORS[courses.length % COURSE_COLORS.length] });
+        setEditingId(null);
+      };
+      const openNewForm = () => {
+        resetForm();
+        setView('form');
+      };
+      const openEditForm = (course) => {
+        setForm({ ...defaultForm, ...course });
+        setEditingId(course.id);
+        setView('form');
+      };
+      const saveCourse = () => {
+        if (!form.name.trim()) return;
+        let newCourses;
+        if (editingId) {
+          newCourses = courses.map((c) => (c.id === editingId ? { ...c, ...form } : c));
+        } else {
+          newCourses = [...courses, {
+            id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+            ...form,
+            createdAt: new Date().toISOString(),
+          }];
+        }
+        saveData(newCourses, submissions);
+        resetForm();
+        setView('settings');
+      };
+      const deleteCourse = (id) => {
+        if (!confirm('この課題と提出履歴をすべて削除しますか?')) return;
+        const newCourses = courses.filter((c) => c.id !== id);
+        const newSubmissions = {};
+        Object.entries(submissions).forEach(([k, v]) => {
+          if (!k.startsWith(`${id}:`) && k !== id) newSubmissions[k] = v;
+        });
+        saveData(newCourses, newSubmissions);
+      };
+
+      // 指定週の課題アイテムを生成
+      const weekItems = useMemo(() => {
+        return courses.map(c => {
+           let start, deadline, key;
+           let belongsToThisWeek = false;
+
+           if (c.type === 'oneoff') {
+              deadline = new Date(`${c.specificEndDate}T${c.specificEndTime || '23:59'}`);
+              start = c.hasStart && c.specificStartDate ? new Date(`${c.specificStartDate}T${c.specificStartTime || '00:00'}`) : null;
+              
+              const viewWeekEnd = addDays(viewWeek, 6);
+              viewWeekEnd.setHours(23, 59, 59, 999);
+              
+              const checkStart = start || deadline;
+              if (checkStart <= viewWeekEnd && deadline >= viewWeek) {
+                  belongsToThisWeek = true;
+              }
+              key = c.id; // 単発は一意のキー
+           } else {
+              // 毎週の課題
+              belongsToThisWeek = true;
+              const endOffset = c.dueDayOfWeek === 0 ? 6 : c.dueDayOfWeek - 1;
+              deadline = addDays(viewWeek, endOffset);
+              const [eh, em] = (c.dueTime || '23:59').split(':');
+              deadline.setHours(parseInt(eh), parseInt(em), 0, 0);
+
+              if (c.hasStart) {
+                 const startOffset = c.startDayOfWeek === 0 ? 6 : c.startDayOfWeek - 1;
+                 start = addDays(viewWeek, startOffset);
+                 if (startOffset > endOffset) start = addDays(start, -7);
+                 const [sh, sm] = (c.startTime || '00:00').split(':');
+                 start.setHours(parseInt(sh), parseInt(sm), 0, 0);
+              }
+              key = `${c.id}:${currentWeekKey}`;
+           }
+
+           if (!belongsToThisWeek) return null;
+
+           const sub = submissions[key];
+           const submitted = !!sub?.submitted;
+           const isPastDeadline = now > deadline;
+           const isUpcoming = start && now < start;
+
+           let status = 'pending';
+           if (submitted) status = 'submitted';
+           else if (isUpcoming) status = 'upcoming';
+           else if (isPastDeadline) status = 'missed';
+
+           return { course: c, submitted, start, deadline, status, submittedAt: sub?.submittedAt, subKey: key };
+        }).filter(Boolean).sort((a, b) => a.deadline - b.deadline);
+      }, [courses, submissions, currentWeekKey, viewWeek, now]);
+
+      // 履歴・統計用のデータ生成
+      const courseStats = useMemo(() => {
+         return courses.map(c => {
+            let total = 0, sub = 0, missed = 0;
+            if (c.type === 'oneoff') {
+               total = 1;
+               const deadline = new Date(`${c.specificEndDate}T${c.specificEndTime || '23:59'}`);
+               if (submissions[c.id]?.submitted) sub++;
+               else if (now > deadline) missed++;
+            } else {
+               const startW = getMondayOf(new Date(c.createdAt || new Date().toISOString()));
+               const currentW = getMondayOf(now);
+               let w = new Date(startW);
+               while (w <= currentW) {
+                  const endOffset = c.dueDayOfWeek === 0 ? 6 : c.dueDayOfWeek - 1;
+                  const deadline = addDays(w, endOffset);
+                  const [eh, em] = (c.dueTime || '23:59').split(':');
+                  deadline.setHours(parseInt(eh), parseInt(em), 0, 0);
+
+                  const key = `${c.id}:${weekKey(w)}`;
+                  if (submissions[key]?.submitted) sub++;
+                  else if (now > deadline) missed++;
+                  total++;
+                  w = addDays(w, 7);
+               }
+            }
+            return { ...c, total, sub, missed };
+         }).sort((a, b) => (b.sub / (b.total || 1)) - (a.sub / (a.total || 1)));
+      }, [courses, submissions, now]);
+
+      const submittedCount = weekItems.filter((i) => i.submitted).length;
+      const missedCount = weekItems.filter((i) => i.status === 'missed').length;
+      const total = weekItems.filter((i) => i.status !== 'upcoming' || i.submitted).length; // 受付前は母数に入れない（提出済みなら入れる）
+      const progress = total === 0 ? 0 : (submittedCount / total) * 100;
+
+      const weekLabel = weekOffset === 0 ? '今週' : weekOffset === -1 ? '先週' : weekOffset === 1 ? '来週' : weekOffset < 0 ? `${Math.abs(weekOffset)}週前` : `${weekOffset}週後`;
+      const weekRangeLabel = (() => {
+        const end = addDays(viewWeek, 6);
+        return `${viewWeek.getMonth() + 1}/${viewWeek.getDate()} - ${end.getMonth() + 1}/${end.getDate()}`;
+      })();
+
+      const formatRemainingShort = (deadline, start, status) => {
+        if (status === 'upcoming') {
+           const diff = start - now;
+           const days = Math.floor(diff / 86400000);
+           const hours = Math.floor((diff / 3600000) % 24);
+           if (days > 0) return `開始まで ${days}日`;
+           return `開始まで 約${Math.max(1, hours)}時間`;
+        }
+
+        const diff = deadline - now;
+        if (diff < 0) {
+          const elapsed = Math.abs(diff);
+          const days = Math.floor(elapsed / 86400000);
+          const hours = Math.floor((elapsed / 3600000) % 24);
+          if (days > 0) return `${days}日超過`;
+          return `${hours}時間超過`;
+        }
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff / 3600000) % 24);
+        const mins = Math.floor((diff / 60000) % 60);
+        if (days > 0) return `あと ${days}日${hours > 0 ? ` ${hours}h` : ''}`;
+        if (hours > 0) return `あと ${hours}時間${mins > 0 ? ` ${mins}分` : ''}`;
+        return `あと ${mins}分`;
+      };
+
+      if (!loaded) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>読み込み中…</div>;
+
+      return (
+        <div className="wt">
+          {view === 'main' && (
+            <div className="wt-container wt-fade-in">
+              <header style={{ marginBottom: '20px' }}>
+                <h1 className="wt-mincho" style={{ fontSize: '26px', fontWeight: 600, margin: 0, letterSpacing: '0.02em' }}>課題チェック</h1>
+                <p style={{ fontSize: '12px', color: '#8b7e6b', margin: '4px 0 0', letterSpacing: '0.1em' }}>WEEKLY ASSIGNMENT TRACKER</p>
+              </header>
+
+              <div className="wt-week-nav">
+                <button className="wt-week-nav-btn" onClick={() => setWeekOffset(weekOffset - 1)} aria-label="前の週"><ChevronLeft size={20} /></button>
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 600 }}>{weekLabel}</div>
+                  <div className="wt-mono" style={{ fontSize: '11px', color: '#8b7e6b', marginTop: '2px' }}>{weekRangeLabel}</div>
+                </div>
+                <button className="wt-week-nav-btn" onClick={() => setWeekOffset(weekOffset + 1)} aria-label="次の週"><ChevronRight size={20} /></button>
+              </div>
+
+              {total > 0 && (
+                <div style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', borderRadius: '14px', padding: '16px 18px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '13px', color: '#6b5f52' }}>提出状況</div>
+                    <div>
+                      <span className="wt-mono" style={{ fontSize: '22px', fontWeight: 600, color: submittedCount === total ? '#5d7c46' : '#2a2622' }}>{submittedCount}</span>
+                      <span className="wt-mono" style={{ fontSize: '14px', color: '#8b7e6b' }}> / {total}</span>
+                    </div>
+                  </div>
+                  <div className="wt-progress-track">
+                    <div className="wt-progress-fill" style={{ width: `${progress}%`, background: submittedCount === total ? '#5d7c46' : missedCount > 0 ? '#b8442d' : '#6b8e4e' }}></div>
+                  </div>
+                  {missedCount > 0 && weekOffset <= 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '13px', color: '#b8442d' }}>
+                      <AlertCircle size={14} stroke={2} /><span>未提出 {missedCount}件</span>
+                    </div>
+                  )}
+                  {submittedCount === total && total > 0 && (
+                    <div style={{ marginTop: '10px', fontSize: '13px', color: '#5d7c46', fontWeight: 500 }}>✓ 受付中の課題はすべて提出済みです</div>
+                  )}
+                </div>
+              )}
+
+              {weekItems.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px 40px', color: '#a89f8f' }}>
+                  <div style={{ margin: '0 auto 16px', opacity: 0.4 }}><BookOpen size={40} stroke={1} /></div>
+                  <p className="wt-mincho" style={{ fontSize: '17px', margin: '0 0 8px', color: '#6b5f52' }}>課題がありません</p>
+                  <p style={{ fontSize: '13px', margin: '0 0 24px', color: '#a89f8f' }}>
+                    設定から毎週の課題や単発のレポートを<br />登録してください。
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {weekItems.map(({ course, submitted, start, deadline, status, submittedAt, subKey }) => (
+                    <div key={subKey} className={`wt-course-card ${status}`} onClick={() => toggleSubmit(subKey, status)} role="button" tabIndex={0}>
+                      <div className={`wt-check ${status}`}>
+                        {submitted && <CheckIcon size={26} stroke={3} />}
+                        {status === 'upcoming' && !submitted && <LockIcon size={20} stroke={2} />}
+                        {status === 'missed' && !submitted && <AlertCircle size={24} stroke={2} />}
+                      </div>
+                      
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: course.color || '#6b5f52', flexShrink: 0 }}></div>
+                          <div className="wt-mincho" style={{
+                            fontSize: '17px', fontWeight: 600,
+                            color: submitted ? '#6b5f52' : '#2a2622',
+                            textDecoration: submitted ? 'line-through' : 'none',
+                            textDecorationColor: '#a89f8f',
+                            lineHeight: 1.3, wordBreak: 'break-word',
+                          }}>{course.name}</div>
+                          {course.type === 'oneoff' && <span style={{fontSize: '10px', background: '#e0d7c4', color: '#6b5f52', padding: '2px 6px', borderRadius: '4px'}}>単発</span>}
+                          {status === 'upcoming' && <span style={{fontSize: '10px', background: '#d4c8b0', color: '#fff', padding: '2px 6px', borderRadius: '4px'}}>受付前</span>}
+                        </div>
+                        
+                        <div style={{ fontSize: '13px', color: '#8b7e6b', marginLeft: '16px', marginBottom: course.url ? '12px' : '0' }}>
+                          <div className="wt-mono" style={{ marginBottom: '2px' }}>
+                            {course.type === 'oneoff' 
+                               ? `締切: ${deadline.getMonth()+1}/${deadline.getDate()} ${course.specificEndTime || '23:59'}`
+                               : `締切: ${DAYS_FULL[course.dueDayOfWeek]} ${course.dueTime}`}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {submitted ? (
+                              <span style={{ color: '#5d7c46', fontWeight: 500 }}>✓ 提出済み</span>
+                            ) : (
+                              <span style={{ color: status === 'missed' ? '#b8442d' : status === 'upcoming' ? '#a89f8f' : '#6b5f52', fontWeight: status === 'missed' ? 500 : 400 }} className="wt-mono">
+                                {formatRemainingShort(deadline, start, status)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ワンクリック提出ボタン */}
+                        {course.url && (
+                          <div style={{ marginLeft: '16px' }} onClick={e => e.stopPropagation()}>
+                            <a href={course.url} target="_blank" rel="noopener noreferrer"
+                               className="wt-btn-primary"
+                               style={{ minHeight: '38px', padding: '0 12px', fontSize: '14px', borderRadius: '8px', textDecoration: 'none', background: status === 'upcoming' ? '#d4c8b0' : '#3d5566' }}>
+                              <ExternalLink size={16} stroke={2} />
+                              提出ページへ
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 統計・履歴ビュー */}
+          {view === 'stats' && (
+            <div className="wt-container wt-fade-in">
+              <header style={{ marginBottom: '20px' }}>
+                <h1 className="wt-mincho" style={{ fontSize: '26px', fontWeight: 600, margin: 0 }}>提出履歴・統計</h1>
+                <p style={{ fontSize: '12px', color: '#8b7e6b', margin: '4px 0 0' }}>これまでに出された課題の達成状況です</p>
+              </header>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {courseStats.map((c) => {
+                  const rate = c.total === 0 ? 0 : Math.round((c.sub / c.total) * 100);
+                  return (
+                    <div key={c.id} style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', borderRadius: '14px', padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: c.color || '#6b5f52' }}></div>
+                          <div className="wt-mincho" style={{ fontSize: '16px', fontWeight: 600 }}>{c.name}</div>
+                          {c.type === 'oneoff' && <span style={{fontSize: '10px', background: '#e0d7c4', color: '#6b5f52', padding: '2px 6px', borderRadius: '4px'}}>単発</span>}
+                        </div>
+                        <div className="wt-mono" style={{ fontSize: '18px', fontWeight: 600, color: rate === 100 ? '#5d7c46' : '#2a2622' }}>
+                          {rate}%
+                        </div>
+                      </div>
+                      
+                      <div className="wt-progress-track" style={{ marginBottom: '10px' }}>
+                        <div className="wt-progress-fill" style={{ width: `${rate}%`, background: rate === 100 ? '#5d7c46' : '#c8893a' }}></div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+                        <div style={{ color: '#6b5f52' }}>発生: <span className="wt-mono">{c.total}</span></div>
+                        <div style={{ color: '#5d7c46' }}>提出: <span className="wt-mono">{c.sub}</span></div>
+                        <div style={{ color: c.missed > 0 ? '#b8442d' : '#8b7e6b' }}>未提出(超過): <span className="wt-mono">{c.missed}</span></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {view === 'settings' && (
+            <div className="wt-container wt-fade-in">
+              <header style={{ marginBottom: '20px' }}>
+                <h1 className="wt-mincho" style={{ fontSize: '26px', fontWeight: 600, margin: 0 }}>課題の管理</h1>
+              </header>
+
+              <button className="wt-btn-primary" onClick={openNewForm} style={{ marginBottom: '24px' }}>+ 新しい課題を登録</button>
+
+              {courses.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8b7e6b' }}>
+                  <p style={{ fontSize: '14px', marginBottom: '20px' }}>登録されている課題がありません</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  {courses.map((c) => (
+                    <div key={c.id} style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', borderRadius: '14px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: c.color || '#6b5f52', flexShrink: 0 }}></div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="wt-mincho" style={{ fontSize: '16px', fontWeight: 600, lineHeight: 1.3, wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                           {c.name}
+                           {c.type === 'oneoff' && <span style={{fontSize: '10px', background: '#e0d7c4', color: '#6b5f52', padding: '2px 6px', borderRadius: '4px'}}>単発</span>}
+                        </div>
+                        <div className="wt-mono" style={{ fontSize: '12px', color: '#8b7e6b', marginTop: '2px' }}>
+                           {c.type === 'oneoff' ? `締切: ${c.specificEndDate}` : `毎週 ${DAYS_FULL[c.dueDayOfWeek]}曜日`}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        <button className="wt-btn-ghost" onClick={() => openEditForm(c)} style={{ padding: '8px 12px', fontSize: '13px', minHeight: '38px' }}>編集</button>
+                        <button className="wt-btn-danger" onClick={() => deleteCourse(c.id)} style={{ padding: '8px 10px', minHeight: '38px' }} aria-label="削除"><TrashIcon size={15} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {view === 'form' && (
+            <div className="wt-container wt-fade-in">
+              <header style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
+                <button className="wt-week-nav-btn" onClick={() => { resetForm(); setView('settings'); }} style={{ background: '#fbf8f1', border: '1px solid #e0d7c4' }} aria-label="戻る">
+                  <XIcon size={20} />
+                </button>
+                <h1 className="wt-mincho" style={{ fontSize: '22px', fontWeight: 600, margin: 0 }}>{editingId ? '課題を編集' : '課題を追加'}</h1>
+              </header>
+
+              <div className="wt-tab-bar">
+                <div className={`wt-tab-btn ${form.type === 'recurring' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'recurring'})}>毎週の課題</div>
+                <div className={`wt-tab-btn ${form.type === 'oneoff' ? 'active' : ''}`} onClick={() => setForm({...form, type: 'oneoff'})}>単発・イレギュラー</div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div>
+                  <label style={{ fontSize: '12px', color: '#8b7e6b', fontWeight: 600, marginBottom: '8px', display: 'block' }}>
+                    課題・科目名 <span style={{ color: '#b8442d' }}>*</span>
+                  </label>
+                  <input className="wt-input" type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="例: 情報科学概論 レポート" />
+                </div>
+
+                {form.type === 'recurring' ? (
+                  <>
+                    <div style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', padding: '16px', borderRadius: '12px' }}>
+                      <label style={{ fontSize: '13px', color: '#2a2622', fontWeight: 600, marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         受付期間（任意）
+                         <input type="checkbox" checked={form.hasStart} onChange={(e) => setForm({...form, hasStart: e.target.checked})} />
+                      </label>
+                      {form.hasStart && (
+                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                           <select className="wt-input" style={{flex: 1, padding: '0 10px'}} value={form.startDayOfWeek} onChange={(e) => setForm({...form, startDayOfWeek: Number(e.target.value)})}>
+                             {DAYS_ORDER.map(d => <option key={`s-${d}`} value={d}>{DAYS_FULL[d]}曜日</option>)}
+                           </select>
+                           <input className="wt-input" style={{flex: 1, padding: '0 10px'}} type="time" value={form.startTime} onChange={(e) => setForm({...form, startTime: e.target.value})} />
+                         </div>
+                      )}
+                    </div>
+
+                    <div style={{ background: '#faeee9', border: '1px solid #e5b7a8', padding: '16px', borderRadius: '12px' }}>
+                      <label style={{ fontSize: '13px', color: '#b8442d', fontWeight: 600, marginBottom: '12px', display: 'block' }}>締切日時 <span style={{ color: '#b8442d' }}>*</span></label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                        {DAYS_ORDER.map((d) => (
+                          <button key={d} className={`wt-day-btn ${form.dueDayOfWeek === d ? 'active' : ''}`} onClick={() => setForm({ ...form, dueDayOfWeek: d })} type="button">{DAYS_FULL[d]}</button>
+                        ))}
+                      </div>
+                      <input className="wt-input" type="time" value={form.dueTime} onChange={(e) => setForm({ ...form, dueTime: e.target.value })} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ background: '#fbf8f1', border: '1px solid #e0d7c4', padding: '16px', borderRadius: '12px' }}>
+                      <label style={{ fontSize: '13px', color: '#2a2622', fontWeight: 600, marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         受付開始日時（任意）
+                         <input type="checkbox" checked={form.hasStart} onChange={(e) => setForm({...form, hasStart: e.target.checked})} />
+                      </label>
+                      {form.hasStart && (
+                         <div style={{ display: 'flex', gap: '10px' }}>
+                           <input className="wt-input" style={{flex: 2, padding: '0 10px'}} type="date" value={form.specificStartDate} onChange={(e) => setForm({...form, specificStartDate: e.target.value})} />
+                           <input className="wt-input" style={{flex: 1, padding: '0 10px'}} type="time" value={form.specificStartTime} onChange={(e) => setForm({...form, specificStartTime: e.target.value})} />
+                         </div>
+                      )}
+                    </div>
+
+                    <div style={{ background: '#faeee9', border: '1px solid #e5b7a8', padding: '16px', borderRadius: '12px' }}>
+                      <label style={{ fontSize: '13px', color: '#b8442d', fontWeight: 600, marginBottom: '12px', display: 'block' }}>締切日時 <span style={{ color: '#b8442d' }}>*</span></label>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <input className="wt-input" style={{flex: 2, padding: '0 10px'}} type="date" value={form.specificEndDate} onChange={(e) => setForm({...form, specificEndDate: e.target.value})} />
+                        <input className="wt-input" style={{flex: 1, padding: '0 10px'}} type="time" value={form.specificEndTime} onChange={(e) => setForm({...form, specificEndTime: e.target.value})} />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div>
+                  <label style={{ fontSize: '12px', color: '#8b7e6b', fontWeight: 600, marginBottom: '8px', display: 'block' }}>URL (任意: 提出ページへ直接アクセス)</label>
+                  <input className="wt-input" type="url" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://..." />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12px', color: '#8b7e6b', fontWeight: 600, marginBottom: '8px', display: 'block' }}>カラー</label>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    {COURSE_COLORS.map((c) => (
+                      <button key={c} className={`wt-color-btn ${form.color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setForm({ ...form, color: c })} type="button" aria-label={`色 ${c}`} />
+                    ))}
+                  </div>
+                </div>
+
+                <button className="wt-btn-primary" onClick={saveCourse} disabled={!form.name.trim()} style={{ marginTop: '8px' }}>
+                  {editingId ? '更新する' : '追加する'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 下部ナビゲーションバー */}
+          {view !== 'form' && (
+            <div className="wt-bottom-nav">
+               <div className={`wt-bottom-nav-item ${view === 'main' ? 'active' : ''}`} onClick={() => setView('main')}>
+                  <HomeIcon size={22} stroke={view === 'main' ? 2.5 : 2} />
+                  <span>ホーム</span>
+               </div>
+               <div className={`wt-bottom-nav-item ${view === 'stats' ? 'active' : ''}`} onClick={() => setView('stats')}>
+                  <StatsIcon size={22} stroke={view === 'stats' ? 2.5 : 2} />
+                  <span>履歴・統計</span>
+               </div>
+               <div className={`wt-bottom-nav-item ${view === 'settings' ? 'active' : ''}`} onClick={() => setView('settings')}>
+                  <SettingsIcon size={22} stroke={view === 'settings' ? 2.5 : 2} />
+                  <span>課題管理</span>
+               </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<WeeklyTracker />);
+  </script>
+</body>
+</html>
